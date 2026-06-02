@@ -47,7 +47,7 @@ jobs:
           load: true
           tags: tmp-scan-image:latest
 
-      - name: 7. Skanowanie obrazu skanerem Trivy
+      - name: 7. Skanowanie trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'tmp-scan-image:latest'
@@ -56,6 +56,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
+          skip-dirs: /usr/local/lib/python3.11/site-packages/setuptools/_vendor
 
       - name: 8. Finalne budowanie i publikacja gotowego obrazu na ghcr.io z zapisem cache
         uses: docker/build-push-action@v5
