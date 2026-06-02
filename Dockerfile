@@ -12,8 +12,8 @@ COPY requirements.txt .
 
 
 #instalacja wheels zeby zbudowac pakietów binarnych ze skompilowanym kodem - a następnie skopiowanie plików wheels do etapu budowania i zainstalowanie ich tam
-RUN pip install --no-cache-dir --user --upgrade wheel jaraco.context && \
-    pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user --upgrade wheel jaraco.context setuptools
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 
 #Et 2 obraz koncowy
