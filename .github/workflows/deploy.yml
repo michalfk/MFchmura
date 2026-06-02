@@ -1,0 +1,70 @@
+name: Potok CI/CD 
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/pogoda-app
+  DOCKERHUB_CACHE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/pogoda-app-cache
+
+jobs:
+  build-and-test:
+    name: budowanie, cve, publikacja obrazu
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 1. Pobranie kodu z GitHub
+        uses: actions/checkout@v4
+
+      - name: 2. Konfiguracja QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: 3. Inicjalizacja narzedzia Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 4. Logowanie do GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 5. Logowanie do Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 6. Budowanie testowej wersji obrazu do lokalnego srodowiska
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: tmp-scan-image:latest
+
+      - name: 7. Skanowanie obrazu skanerem Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'tmp-scan-image:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+
+      - name: 8. Finalne budowanie i publikacja gotowego obrazu na ghcr.io z zapisem cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.DOCKERHUB_CACHE_REPO }}:cache-main
+          cache-to: type=registry,ref=${{ env.DOCKERHUB_CACHE_REPO }}:cache-main,mode=max
